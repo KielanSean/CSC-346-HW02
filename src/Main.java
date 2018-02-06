@@ -1,8 +1,39 @@
+
+import java.sql.*;
+
 public class Main {
 
 
     public static void main(String[] args) {
-	// write your code here
+
+        String host = "jdbc:mysql://turing.cs.missouriwestern.edu:3306/misc";
+        String user = "csc254";
+        String password = "age126";
+
+        Connection conn;
+        Statement st;
+        ResultSet rs;
+
+        try {
+            conn = DriverManager.getConnection(host, user, password);
+            String queryString = "SELECT * FROM zips LIMIT 10";
+            st = conn.createStatement();
+            rs =  st.executeQuery(queryString);
+            while (rs.next()) {
+                System.out.print(rs.getShort("zip_code")+" ");
+                System.out.print(" " + rs.getString("city")+"\n");
+            }
+
+            conn.close();
+        } catch (SQLException e) {
+//            e.printStackTrace();
+            System.err.println("Failed to connect to " + host);
+            System.err.println(e.getMessage());
+
+            System.exit(1);
+
+        }
+
         System.out.println(calcDistance(42.8944, 39.7675, -93.2119, -94.8467));
 
     }
@@ -21,7 +52,8 @@ public class Main {
                 Math.sin(dLon/2)*Math.sin(dLon/2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         double d = R * c;
-        return d / 1000;
+        d = d / 1000;
+        return Math.round(d*10.0)/10.0;
     }
 }
 
