@@ -1,7 +1,6 @@
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
 
@@ -17,15 +16,13 @@ public class Main {
         String host = "jdbc:mysql://turing.cs.missouriwestern.edu:3306/misc";
         String user = "csc254";
         String password = "age126";
-        City centerCity = new City("Hello", "64505", 42.89,-93.21);
-        ArrayList<City> cities = new ArrayList<City>();
+        City centerCity = new City();
+        Set<City> cities = new HashSet<>();
         Connection conn;
         Statement st;
         ResultSet rs;
         String zipC;
         String dis;
-//        System.out.println(calcDistance(42.8944, 39.7675, -93.2119, -94.8467));
-
         Scanner scan = new Scanner(System.in);
         System.out.println("Enter the zip code");
         zipC = scan.nextLine();
@@ -41,27 +38,26 @@ public class Main {
                 boolean isPrime;
                 String name = rs.getString("city");
                 String zipcode = rs.getString("zip_code");
+                String state = rs.getString("state_prefix");
                 double lat1 = rs.getDouble("lat");
                 double lon1 = rs.getDouble("lon");
                 isPrime = rs.getBoolean("z_primary");
                 int pop1 = rs.getInt("population");
                 int house1 = rs.getInt("housingunits");
                 if (isPrime) {
-                    centerCity = new City(name, zipcode, lat1, lon1);
+                    centerCity = new City(name, state, zipcode, lat1, lon1, pop1, house1);
                     cities.add(centerCity);
-                    pop += pop1;
-                    housing += house1;
                     break;
                 }
             }
 
             getDistance(Integer.parseInt(dis), centerCity.getLat(), centerCity.getLon());
 
-            String distanceQuery = String.format("SELECT * FROM zips WHERE\n\t(lat >= %.2f AND lat<= %.2f) AND (lon >= %.2f " +
-                    "AND lon <= %.2f)\nAND\n\tacos(sin(%.2f) * sin(%.2f) + cos(%.2f) * cos(%.2f) *cos(%.2f - (%.2f))) " +
-                    "<= %.2f;",Math.toDegrees(minLat), Math.toDegrees(maxLat), Math.toDegrees(minLon), Math.toDegrees(maxLon)
-                    , Math.toDegrees(1.3963), centerCity.getLon(), Math.toDegrees(1.3963),centerCity.getLat(),
-                    centerCity.getLon(),Math.toDegrees(-0.6981), Math.toDegrees(0.570) ) ;
+            String distanceQuery = String.format("SELECT * FROM zips WHERE\n\t(lat >= %.2f AND lat<= %.2f) AND " +
+                            "(lon >= %.2f AND lon <= %.2f)\nAND\n\tacos(sin(%.2f) * sin(lat) + cos(%.2f) * cos(lat) * " +
+                            "cos(lon - (%.2f))) <= %.2f;",Math.toDegrees(minLat), Math.toDegrees(maxLat),
+                            Math.toDegrees(minLon), Math.toDegrees(maxLon), Math.toDegrees(1.3963),
+                            Math.toDegrees(1.3963),Math.toDegrees(-0.6981), Math.toDegrees(0.570) ) ;
 
             st = conn.createStatement();
             rs = st.executeQuery(distanceQuery);
@@ -69,6 +65,7 @@ public class Main {
                 boolean isPrime;
                 String name = rs.getString("city");
                 String zipcode = rs.getString("zip_code");
+                String state = rs.getString("state_prefix");
                 double lat1 = rs.getDouble("lat");
                 double lon1 = rs.getDouble("lon");
                 isPrime = rs.getBoolean("z_primary");
@@ -76,35 +73,38 @@ public class Main {
                 int house1 = rs.getInt("housingunits");
                 int taNum = 0;
                 if (isPrime) {
-                    City toAdd = new City(name, zipcode, lat1, lon1);
-                    for (City currentCity : cities) {
-                        if (currentCity.getName().equals(toAdd.getName())) {
-                            taNum =1;
-                            break;
-                        }
-                    }
-                    pop += pop1;
-                    housing += house1;
-                    if (taNum == 1) {
-                        break;
-                    } else {
-                        cities.add(toAdd);
-                    }
+                    City toAdd = new City(name, state, zipcode, lat1, lon1, pop1, house1);
+                    cities.add(toAdd);
                 }
             }
-            for (int i = 0; i < cities.size(); i++) {
-                cities.get(i).print();
+            Set<City> set = new TreeSet<City>(new Comparator<City>() {
+                @Override
+                public int compare(City o1, City o2) {
+                    if (o1.getName().equals(o2.getName()) && o1.getState().equals(o2.getState())) {
 
+                        return 0;
+                    }
+                    return 1;
+                }
+            });
+            set.addAll(cities);
+
+            for (City city: set) {
+                pop += city.getPopulation();
+                housing += city.getHousingUnits();
+                double disFrom = calcDistance(centerCity.getLat(), city.getLat(), centerCity.getLon(), city.getLon());
+                System.out.printf("%s, %s with Zip Code: %s at %.2f, %.2f %.2f From %s, %s\n", city.getName(),
+                        city.getState(), city.getZip(), city.getLat(), city.getLon(), disFrom, centerCity.getName()
+                        , centerCity.getState());
             }
+
             System.out.printf("\nPopulation of cities affected: %d\nHousing Units in cities affected: %d\n", pop, housing);
 
             conn.close();
         } catch (SQLException e) {
             System.err.println("Failed to connect to " + host);
             System.err.println(e.getMessage());
-
             System.exit(1);
-
         }
     }
 
@@ -132,33 +132,52 @@ public class Main {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         double d = R * c;
         d = d / 1000;
+        d = d / 1.609344;
         return Math.round(d*10.0)/10.0;
     }
 }
 
 
 class City {
-    protected String name, zip;
+    protected String name, zip, state;
     protected double lat, lon;
+    protected int population, housingUnits;
 
-    public City(String name, String zip, double lat, double lon) {
+
+    public City(String name, String state, String zip, double lat, double lon, int population, int housingUnits) {
         this.name = name;
         this.zip = zip;
+        this.state = state;
         this.lat = lat;
         this.lon = lon;
+        this.population = population;
+        this.housingUnits = housingUnits;
     }
 
     public City() {}
 
     public String getName(){
         return name;}
+    public String getState(){
+        return state;}
+
+    public String getZip() {
+        return zip;
+    }
     public double getLat() {
         return lat;
     }
     public double getLon() {
         return lon;
     }
+
+    public int getPopulation(){
+        return population;}
+
+    public int getHousingUnits() {
+        return housingUnits;
+    }
     public void print() {
-        System.out.printf("%s with Zip Code: %s at %.2f, %.2f\n", name, zip, lat, lon);
+        System.out.printf("%s, %s with Zip Code: %s at %.2f, %.2f\n", name, state, zip, lat, lon);
     }
 }
