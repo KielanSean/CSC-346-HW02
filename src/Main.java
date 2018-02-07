@@ -9,6 +9,8 @@ public class Main {
     public static double maxLon;
     public static double minLon;
     public static double minLat;
+    public static int pop;
+    public static int housing;
 
     public static void main(String[] args) {
 
@@ -21,17 +23,9 @@ public class Main {
         Statement st;
         ResultSet rs;
         String zipC;
-        String dis = "30000";
+        String dis;
+//        System.out.println(calcDistance(42.8944, 39.7675, -93.2119, -94.8467));
 
-//        centerCity = new City("Saint Joseph", "64505", 49.32, 89.215);
-//        getDistance(Integer.parseInt(dis), centerCity.getLat(), centerCity.getLon());
-//        String distanceQuery = String.format("SELECT * FROM zips WHERE\n\t(lat >= %.2f AND lat<= %.2f) AND (lon >= %.2f " +
-//                        "AND lon <= %.2f)\nAND\n\tacos(sin(%.2f) * sin(%.2f) + cos(%.2f) * cos(%.2f) *cos(%.2f - (%.2f))) " +
-//                        "<= %.2f;",Math.toDegrees(minLat), Math.toDegrees(maxLat), Math.toDegrees(minLon), Math.toDegrees(maxLon)
-//                , Math.toDegrees(1.3963), centerCity.getLon(), Math.toDegrees(1.3963),centerCity.getLat(),
-//                centerCity.getLon(),Math.toDegrees(-0.6981), Math.toDegrees(0.570) ) ;
-//
-//        System.out.println(distanceQuery);
         Scanner scan = new Scanner(System.in);
         System.out.println("Enter the zip code");
         zipC = scan.nextLine();
@@ -50,9 +44,13 @@ public class Main {
                 double lat1 = rs.getDouble("lat");
                 double lon1 = rs.getDouble("lon");
                 isPrime = rs.getBoolean("z_primary");
+                int pop1 = rs.getInt("population");
+                int house1 = rs.getInt("housingunits");
                 if (isPrime) {
                     centerCity = new City(name, zipcode, lat1, lon1);
                     cities.add(centerCity);
+                    pop += pop1;
+                    housing += house1;
                     break;
                 }
             }
@@ -74,6 +72,8 @@ public class Main {
                 double lat1 = rs.getDouble("lat");
                 double lon1 = rs.getDouble("lon");
                 isPrime = rs.getBoolean("z_primary");
+                int pop1 = rs.getInt("population");
+                int house1 = rs.getInt("housingunits");
                 int taNum = 0;
                 if (isPrime) {
                     City toAdd = new City(name, zipcode, lat1, lon1);
@@ -83,26 +83,21 @@ public class Main {
                             break;
                         }
                     }
+                    pop += pop1;
+                    housing += house1;
                     if (taNum == 1) {
                         break;
                     } else {
                         cities.add(toAdd);
                     }
-
-//                    if (cities.contains(toAdd.getName())) {
-//                        break;
-//                    }else{
-//                        cities.add(toAdd);
-//                    }
                 }
-
             }
-
-
             for (int i = 0; i < cities.size(); i++) {
                 cities.get(i).print();
 
             }
+            System.out.printf("\nPopulation of cities affected: %d\nHousing Units in cities affected: %d\n", pop, housing);
+
             conn.close();
         } catch (SQLException e) {
             System.err.println("Failed to connect to " + host);
@@ -111,18 +106,12 @@ public class Main {
             System.exit(1);
 
         }
-
-        System.out.println(calcDistance(42.8944, 39.7675, -93.2119, -94.8467));
-
     }
 
     public static void getDistance(int distance, double givenLat, double givenLon) {
-        double r = Math.toRadians(distance / 3958.76);
+        double r = (distance / 3958.76);
         minLat = Math.toRadians(givenLat) - r;
         maxLat = Math.toRadians(givenLat) + r;
-//        double Tlat = Math.asin((Math.sin(Math.toRadians(givenLat)) / Math.cos(r)));
-//        double Dlon = (Math.acos((Math.cos(r)) - (Math.sin(Tlat)) * Math.sin(Math.toRadians(givenLat)))) /
-//                ((Math.cos(Tlat)) * Math.cos(Math.toRadians(givenLat)));
         double Dlon = Math.asin((Math.sin(r)) / Math.cos(Math.toRadians(givenLat)));
         minLon = Math.toRadians(givenLon) - Dlon;
         maxLon = Math.toRadians(givenLon) + Dlon;
